@@ -12,7 +12,7 @@
 - **엔지니어링 어필 포인트:**
   - **Zero-Cost Local Architecture:** 서버 비용 없이 Docker 및 DuckDB 기반으로 대용량 OLAP 연산 처리
   - **Idempotent Data Ingestion:** API 호출 및 적재 시 중복 적재를 방지하는 정등성(Idempotency) 보장
-  - **Data Transformation with dbt:** Raw Data(Bronze) → Refined Data(Silver) → Data Mart(Gold) 단계별 데이터 모델링
+  - **Data Transformation with dbt:** Raw Data(Bronze) -> Refined Data(Silver) -> Data Mart(Gold) 단계별 데이터 모델링
 
 ---
 
@@ -31,7 +31,6 @@
 
 ## 📂 Directory Structure
 
-```text
 korea-realestate-pipeline/
 ├── .gitignore             # Git 제외 설정 (.env, venv, data/ 등)
 ├── .env                   # API Key 및 인증 정보 (Git 미포함)
@@ -44,31 +43,35 @@ korea-realestate-pipeline/
 │   ├── fetch_api.py       # 공공데이터 API 수집 및 XML/JSON 파싱
 │   └── load_to_duckdb.py  # DuckDB 테이블 적재
 └── data/                  # Local Raw/Parquet/DuckDB 저장소 (Git 미포함)
-```
-## 🚀 Local Development Setup Guide
-### 1. Repository Clone & Environment Setup
 
-# 1) 저장소 클론
-git clone [https://github.com/](https://github.com/)<your-username>/korea-realestate-pipeline.git
+---
+
+## 🚀 Local Development Setup Guide
+
+### 1. Repository Clone & Environment Setup
+1) 저장소 클론
+git clone https://github.com/your-username/korea-realestate-pipeline.git
 cd korea-realestate-pipeline
 
-### 2. Environment Variables Setup (.env)
-프로젝트 루트 경로에 .env 파일을 생성을 하고 공공데이터포털에서 발급받은 디코딩(Decoding) API 키를 입력합니다.
-# 2) 파이썬 가상환경 생성 및 활성화 (Windows PowerShell 기준)
+2) 파이썬 가상환경 생성 및 활성화 (Windows PowerShell 기준)
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 
-# 3) 필수 패키지 일괄 설치
+3) 필수 패키지 일괄 설치
 pip install -r requirements.txt
 
-# .env (Git에 올라가지 않음)
+### 2. Environment Variables Setup (.env)
+프로젝트 루트 경로에 .env 파일을 생성하고 공공데이터포털에서 발급받은 디코딩(Decoding) API 키를 입력합니다.
+
 DATA_GO_KR_API_KEY="본인의_디코딩_서비스_인증키"
 DUCKDB_PATH="data/real_estate.db"
 
+---
 
-### 🐳 Running with Docker Airflow
-# 1) Docker 컨테이너 실행 (Airflow + Postgres)
+## 🐳 Running with Docker Airflow
+
+1) Docker 컨테이너 실행 (Airflow + Postgres)
 docker-compose up -d
 
-# 2) Airflow Web UI 접속
-# http://localhost:8080 접속 후 DAG 상태 확인
+2) Airflow Web UI 접속
+http://localhost:8080 접속 후 DAG 상태 확인
