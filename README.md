@@ -1,4 +1,4 @@
-# 🏢 Korea Real Estate & Auction Data Pipeline (`korea-realestate-pipeline`)
+# 🏢 Korea Real Estate & Auction Data Pipeline (korea-realestate-pipeline)
 
 > **국토교통부 부동산 실거래가 및 온비드 경공매 데이터를 활용한 End-to-End 데이터 파이프라인**  
 > Apache Airflow, DuckDB, dbt, Docker 기반으로 구축된 로컬 데이터 레이크하우스(Data Lakehouse) 프로젝트입니다.
@@ -49,16 +49,16 @@ korea-realestate-pipeline/
 ## 🚀 Local Development Setup Guide
 
 ### 1. Repository Clone & Environment Setup
-1) 저장소 클론
-git clone https://github.com/your-username/korea-realestate-pipeline.git
-cd korea-realestate-pipeline
+- 저장소 클론
+  git clone https://github.com/your-username/korea-realestate-pipeline.git
+  cd korea-realestate-pipeline
 
-2) 파이썬 가상환경 생성 및 활성화 (Windows PowerShell 기준)
-python -m venv venv
-.\venv\Scripts\Activate.ps1
+- 파이썬 가상환경 생성 및 활성화 (Windows PowerShell 기준)
+  python -m venv venv
+  .\venv\Scripts\Activate.ps1
 
-3) 필수 패키지 일괄 설치
-pip install -r requirements.txt
+- 필수 패키지 일괄 설치
+  pip install -r requirements.txt
 
 ### 2. Environment Variables Setup (.env)
 프로젝트 루트 경로에 .env 파일을 생성하고 공공데이터포털에서 발급받은 디코딩(Decoding) API 키를 입력합니다.
@@ -70,8 +70,8 @@ DUCKDB_PATH="data/real_estate.db"
 
 ## 🐳 Running with Docker Airflow
 
-1) Docker 컨테이너 실행 (Airflow + Postgres)
-docker-compose up -d
+- Docker 컨테이너 실행 (Airflow + Postgres)
+  docker-compose up -d
 
-2) Airflow Web UI 접속
-http://localhost:8080 접속 후 DAG 상태 확인
+- Airflow Web UI 접속
+  http://localhost:8080 접속 후 DAG 상태 확인
