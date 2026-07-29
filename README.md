@@ -44,7 +44,7 @@ korea-realestate-pipeline/
 │   ├── fetch_api.py       # 공공데이터 API 수집 및 XML/JSON 파싱
 │   └── load_to_duckdb.py  # DuckDB 테이블 적재
 └── data/                  # Local Raw/Parquet/DuckDB 저장소 (Git 미포함)
-
+```
 ## 🚀 Local Development Setup Guide
 ### 1. Repository Clone & Environment Setup
 
