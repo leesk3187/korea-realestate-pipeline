@@ -97,6 +97,7 @@ python main.py
 ```bash
 streamlit run app.py
 ```
+브라우저가 열리며 http://localhost:8501에서 대시보드를 확인하실 수 있습니다.
 
 ```env
 DATA_GO_KR_API_KEY="본인의_디코딩_서비스_인증키"
