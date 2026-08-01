@@ -82,6 +82,10 @@ pip install -r requirements.txt
 ### 2. Environment Variables Setup (.env)
 
 프로젝트 루트 경로에 `.env` 파일을 생성하고, 공공데이터포털에서 발급받은 **디코딩(Decoding) API 키**를 입력합니다.
+```env
+DATA_GO_KR_API_KEY="본인의_디코딩_서비스_인증키"
+DUCKDB_PATH="data/real_estate.db"
+```
 
 
 ### 3. Pipeline Execution (ELT Step)
@@ -98,11 +102,6 @@ python main.py
 streamlit run app.py
 ```
 브라우저가 열리며 http://localhost:8501에서 대시보드를 확인하실 수 있습니다.
-
-```env
-DATA_GO_KR_API_KEY="본인의_디코딩_서비스_인증키"
-DUCKDB_PATH="data/real_estate.db"
-```
 
 ---
 
