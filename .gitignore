@@ -1,18 +1,15 @@
-# Python 가상환경
+# Python 가상환경 및 캐시
 venv/
 .venv/
 __pycache__/
 *.pyc
 
-# 보안 및 환경변수 (절대 Git에 올리지 않음)
+# 민감 정보 (API 서비스 키, 환경변수)
 .env
 
-# 데이터 파일 및 DB (Git에 올리지 않음)
-data/
-*.db
-*.parquet
+# 생성 데이터베이스 파일 (대용량/바이너리 데이터 제외)
+*.duckdb
+*.duckdb.wal
 
-# Airflow 로컬 로그/DB
-logs/
-airflow.db
-airflow.cfg
+# VS Code 설정
+.vscode/

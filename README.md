@@ -45,10 +45,11 @@ korea-realestate-pipeline/
 ├── requirements.txt       # Python 패키지 의존성 목록
 ├── docker-compose.yml     # Airflow & Local DB 구동 컨테이너 설정
 ├── dags/                  # Airflow DAG 파이프라인
-│   └── real_estate_dag.py
-├── src/                   # 데이터 수집 및 적재 파이썬 스크립트
-│   ├── fetch_api.py       # 공공데이터 API 수집 및 XML/JSON 파싱
-│   └── load_to_duckdb.py  # DuckDB 테이블 적재
+│   └── apt_trade_pipeline_dag.py # 아파트 실거래가 수집-적재-변환 DAG
+├── src/                         # 데이터 수집, 적재, 변환 파이썬 스크립트
+├   ├── fetch_api.py             # 공공데이터 API 수집 및 XML/JSON 파싱
+├   ├── load_to_duckdb.py        # DuckDB raw 적재 및 Upsert
+├   └── transform_views.py       # 데이터 변환 및 분석용 Data Mart View 생성
 └── data/                  # Local Raw/Parquet/DuckDB 저장소 (Git 미포함)
 ```
 
@@ -81,6 +82,21 @@ pip install -r requirements.txt
 ### 2. Environment Variables Setup (.env)
 
 프로젝트 루트 경로에 `.env` 파일을 생성하고, 공공데이터포털에서 발급받은 **디코딩(Decoding) API 키**를 입력합니다.
+
+
+### 3. Pipeline Execution (ELT Step)
+
+통합 파이프라인(main.py)을 구동하여 API 수집부터 DuckDB 적재 및 Data Mart View 생성까지 한 번에 실행합니다.
+
+```bash
+python main.py
+```
+
+### 4. Streamlit Dashboard Run
+적재 및 변환 완료된 데이터를 기반으로 시각화 대시보드를 실행합니다.
+```bash
+streamlit run app.py
+```
 
 ```env
 DATA_GO_KR_API_KEY="본인의_디코딩_서비스_인증키"

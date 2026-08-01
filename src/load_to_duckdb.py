@@ -1,135 +1,125 @@
 import os
 import duckdb
 import pandas as pd
-from dotenv import load_dotenv
+from fetch_api import fetch_apt_trade_batch
 
-load_dotenv()
+DB_PATH = "apt_trade.duckdb"
 
-# DuckDB 파일 경로 (.env에서 로드, 기본값 설정)
-DB_PATH = os.getenv("DUCKDB_PATH", "data/real_estate.db")
-
-
-def init_db(con: duckdb.DuckDBPyConnection):
-    """
-    [테이블 초기화]
-    Raw 레이어용 아파트 매매 실거래가 테이블(raw_apt_trade)이 없으면 생성합니다.
-    """
-    query = """
-    CREATE TABLE IF NOT EXISTS raw_apt_trade (
-        lawd_cd VARCHAR,            -- 법정동코드 5자리
-        apt_name VARCHAR,           # 아파트명
-        price BIGINT,               -- 거래금액 (만원)
-        build_year INT,             -- 준공년도
-        deal_year INT,              -- 계약년도
-        deal_month VARCHAR(2),      -- 계약월 (2자리)
-        deal_day VARCHAR(2),        -- 계약일 (2자리)
-        area DOUBLE,                -- 전용면적(㎡)
-        dong VARCHAR,               -- 법정동명
-        floor INT,                  -- 층수
-        req_gbn VARCHAR,            -- 거래유형 (중개거래/직거래)
-        estate_agent_sgg_nm VARCHAR, -- 중개업소 위치
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- 적재 일시
+def create_table_if_not_exists(conn: duckdb.DuckDBPyConnection):
+    """DuckDB 테이블 및 PK(복합키) 설정"""
+    conn.execute("""
+    CREATE TABLE IF NOT EXISTS apt_trade (
+        lawd_cd VARCHAR,
+        apt_name VARCHAR,
+        price INTEGER,
+        build_year INTEGER,
+        deal_year INTEGER,
+        deal_month VARCHAR,
+        deal_day VARCHAR,
+        deal_date DATE,
+        area DOUBLE,
+        dong VARCHAR,
+        floor INTEGER,
+        req_gbn VARCHAR,
+        estate_agent_sgg_nm VARCHAR,
+        buyer_gbn VARCHAR,
+        seller_gbn VARCHAR,
+        apt_seq VARCHAR,
+        cno VARCHAR,
+        srg_mode VARCHAR,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (lawd_cd, apt_name, area, floor, deal_date, price)
     );
-    """
-    con.execute(query)
+    """)
 
-
-def save_to_duckdb(df: pd.DataFrame, db_path: str = DB_PATH):
-    """
-    [Data Loader]
-    수집된 DataFrame을 DuckDB에 적재합니다.
-    동일 연월/지역 중복을 방지하기 위해 덮어쓰기 형태로 처리합니다.
-    """
+def transform_data(df: pd.DataFrame) -> pd.DataFrame:
+    """API Raw 데이터의 타입을 정제 및 변환 (부족한 컬럼 자동 보완)"""
     if df.empty:
-        print("⚠️ 적재할 데이터가 없습니다 (Empty DataFrame).")
+        return df
+
+    df = df.copy()
+
+    # 1. DB 스키마에 정의된 필수 컬럼 목록
+    required_columns = [
+        'lawd_cd', 'apt_name', 'price', 'build_year', 'deal_year', 
+        'deal_month', 'deal_day', 'area', 'dong', 'floor', 
+        'req_gbn', 'estate_agent_sgg_nm', 'buyer_gbn', 'seller_gbn', 
+        'apt_seq', 'cno', 'srg_mode'
+    ]
+
+    # 2. DataFrame에 없는 컬럼은 빈 문자열("")로 자동 생성 (일반/상세 API 호환성 보장)
+    for col in required_columns:
+        if col not in df.columns:
+            df[col] = ""
+
+    # 3. 숫자형 타입 변환
+    df['price'] = pd.to_numeric(df['price'], errors='coerce').fillna(0).astype(int)
+    df['build_year'] = pd.to_numeric(df['build_year'], errors='coerce').fillna(0).astype(int)
+    df['deal_year'] = pd.to_numeric(df['deal_year'], errors='coerce').fillna(0).astype(int)
+    df['floor'] = pd.to_numeric(df['floor'], errors='coerce').fillna(0).astype(int)
+    df['area'] = pd.to_numeric(df['area'], errors='coerce').fillna(0.0).astype(float)
+
+    # 4. 날짜 컬럼 생성 (YYYY-MM-DD)
+    df['deal_date'] = pd.to_datetime(
+        df['deal_year'].astype(str) + '-' + 
+        df['deal_month'].astype(str).str.zfill(2) + '-' + 
+        df['deal_day'].astype(str).str.zfill(2),
+        errors='coerce'
+    ).dt.date
+
+    return df
+
+def upsert_to_duckdb(df: pd.DataFrame, db_path: str = DB_PATH):
+    """DuckDB에 Upsert(Merge) 수행하여 데이터 적재"""
+    if df.empty:
+        print("⚠️ 적재할 데이터가 없습니다.")
         return
 
-    # 데이터 타입 캐스팅 및 정리
-    df_clean = df.copy()
+    df_clean = transform_data(df)
     
-    # 숫자형 컬럼 변환 (빈 문자열 처리 포함)
-    df_clean['price'] = pd.to_numeric(df_clean['price'], errors='coerce').fillna(0).astype('int64')
-    df_clean['build_year'] = pd.to_numeric(df_clean['build_year'], errors='coerce').fillna(0).astype('int32')
-    df_clean['deal_year'] = pd.to_numeric(df_clean['deal_year'], errors='coerce').fillna(0).astype('int32')
-    df_clean['floor'] = pd.to_numeric(df_clean['floor'], errors='coerce').fillna(0).astype('int32')
-    df_clean['area'] = pd.to_numeric(df_clean['area'], errors='coerce').fillna(0.0).astype('float64')
+    conn = duckdb.connect(db_path)
+    create_table_if_not_exists(conn)
 
-    # DB 디렉터리 자동 생성 (data/ 폴더가 없을 경우 대비)
-    db_dir = os.path.dirname(db_path)
-    if db_dir and not os.path.exists(db_dir):
-        os.makedirs(db_dir, exist_ok=True)
-
-    # DuckDB 연결 (파일이 없으면 자동 생성됨)
-    con = duckdb.connect(db_path)
-
-    try:
-        # 1. 테이블 초기화
-        init_db(con)
-
-        # 2. 중복 방지 (현재 수집 대상 지역/연월 데이터 삭제 후 Insert)
-        unique_lawd = df_clean['lawd_cd'].unique().tolist()
-        unique_year = df_clean['deal_year'].unique().tolist()
-        unique_month = df_clean['deal_month'].unique().tolist()
-
-        delete_query = """
-        DELETE FROM raw_apt_trade 
-        WHERE lawd_cd IN SELECT * FROM df_lawd
-          AND deal_year IN SELECT * FROM df_year
-          AND deal_month IN SELECT * FROM df_month;
-        """
-        
-        # Temp DataFrames for DuckDB SQL IN clause mapping
-        df_lawd = pd.DataFrame({'lawd_cd': unique_lawd})
-        df_year = pd.DataFrame({'deal_year': unique_year})
-        df_month = pd.DataFrame({'deal_month': unique_month})
-
-        con.execute(
-            """
-            DELETE FROM raw_apt_trade 
-            WHERE lawd_cd IN (SELECT lawd_cd FROM df_lawd)
-              AND deal_year IN (SELECT deal_year FROM df_year)
-              AND deal_month IN (SELECT deal_month FROM df_month)
-            """
-        )
-
-        # 3. DuckDB DataFrame Direct Insert
-        con.execute(
-            """
-            INSERT INTO raw_apt_trade (
-                lawd_cd, apt_name, price, build_year, deal_year, 
-                deal_month, deal_day, area, dong, floor, req_gbn, estate_agent_sgg_nm
-            )
-            SELECT 
-                lawd_cd, apt_name, price, build_year, deal_year, 
-                deal_month, deal_day, area, dong, floor, req_gbn, estate_agent_sgg_nm
-            FROM df_clean
-            """
-        )
-
-        # 4. 적재 결과 확인
-        total_count = con.execute("SELECT COUNT(*) FROM raw_apt_trade").fetchone()[0]
-        print(f"✅ DuckDB 적재 완료! (신규/갱신: {len(df_clean)}건 | raw_apt_trade 총 누적: {total_count}건)")
-
-    except Exception as e:
-        print(f"💥 DuckDB 적재 중 오류 발생: {e}")
-    finally:
-        con.close()
-
+    # 임시 등록(Staging) 후 Upsert 수행
+    conn.register('df_staging', df_clean)
+    
+    upsert_query = """
+    INSERT INTO apt_trade (
+        lawd_cd, apt_name, price, build_year, deal_year, deal_month, deal_day, 
+        deal_date, area, dong, floor, req_gbn, estate_agent_sgg_nm, 
+        buyer_gbn, seller_gbn, apt_seq, cno, srg_mode
+    )
+    SELECT 
+        lawd_cd, apt_name, price, build_year, deal_year, deal_month, deal_day, 
+        deal_date, area, dong, floor, req_gbn, estate_agent_sgg_nm, 
+        buyer_gbn, seller_gbn, apt_seq, cno, srg_mode
+    FROM df_staging
+    ON CONFLICT (lawd_cd, apt_name, area, floor, deal_date, price) 
+    DO UPDATE SET
+        req_gbn = EXCLUDED.req_gbn,
+        estate_agent_sgg_nm = EXCLUDED.estate_agent_sgg_nm,
+        buyer_gbn = EXCLUDED.buyer_gbn,
+        seller_gbn = EXCLUDED.seller_gbn,
+        cno = EXCLUDED.cno,
+        srg_mode = EXCLUDED.srg_mode;
+    """
+    
+    conn.execute(upsert_query)
+    
+    count = conn.execute("SELECT COUNT(*) FROM apt_trade").fetchone()[0]
+    print(f"✅ DuckDB 적재 완료! (현재 총 누적 데이터: {count:,}건)")
+    
+    conn.close()
 
 if __name__ == "__main__":
-    # fetch_api.py로부터 수집 모듈 임포트 후 연동 테스트
-    from fetch_api import fetch_apt_trade_batch
-
     target_lawd_codes = ["11110", "11140", "11170"]
-    start_month = "202511"
-    end_month = "202601"
-
-    # 1. API 수집 실행
-    df_fetched = fetch_apt_trade_batch(
+    
+    # fetch_api.py와 동일하게 3개 연월 범위로 수집 지정
+    raw_df = fetch_apt_trade_batch(
         lawd_cd_list=target_lawd_codes,
-        start_ymd=start_month,
-        end_ymd=end_month
+        start_ymd="202511",  # 수집 시작 연월
+        end_ymd="202601"     # 수집 종료 연월
     )
-
-    # 2. DuckDB 적재 실행
-    save_to_duckdb(df_fetched)
+    
+    # DuckDB 적재 실행
+    upsert_to_duckdb(raw_df)
